@@ -90,7 +90,12 @@ class RBCParser:
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                     "AppleWebKit/537.36 (KHTML, like Gecko) "
                     "Chrome/124.0.0.0 Safari/537.36"
-                )
+                ),
+                "Accept": "application/json, text/javascript, */*; q=0.01",
+                "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
+                "Referer": "https://www.rbc.ru/search/",
+                "Origin": "https://www.rbc.ru",
+                "X-Requested-With": "XMLHttpRequest",
             }
         )
 
@@ -103,6 +108,7 @@ class RBCParser:
         adapter = HTTPAdapter(max_retries=retry)
         self.session.mount("https://", adapter)
         self.session.mount("http://", adapter)
+        self._is_warmed_up = False
 
     def fetch(
         self,
@@ -133,6 +139,7 @@ class RBCParser:
         return articles
 
     def _get_search_page(self, search_params: RBCSearchParams, page: int) -> dict[str, Any]:
+        self._warm_up_session()
         response = self.session.get(
             self.BASE_URL,
             params=search_params.to_request_params(page),
@@ -140,6 +147,18 @@ class RBCParser:
         )
         response.raise_for_status()
         return response.json()
+
+    def _warm_up_session(self) -> None:
+        if self._is_warmed_up:
+            return
+
+        # RBC may require cookies from a regular page visit before the AJAX
+        # search endpoint becomes available.
+        self.session.get(self.SOURCE_URL, timeout=self.timeout)
+        time.sleep(self.delay)
+        self.session.get("https://www.rbc.ru/search/", timeout=self.timeout)
+        time.sleep(self.delay)
+        self._is_warmed_up = True
 
     def _parse_search_item(
         self,
