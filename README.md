@@ -122,7 +122,7 @@ alembic upgrade head
 ### 5. Запустить ingestion-заготовку
 
 ```powershell
-python -m scripts.run_ingestion --query "РБК" --date-from 2024-04-22 --date-to 2024-04-23 --max-pages 1
+python -m scripts.run_ingestion --query "РБК" --date-from 2026-04-20 --date-to 2026-04-21 --max-pages 1
 ```
 
 ### Переход на PostgreSQL позже
