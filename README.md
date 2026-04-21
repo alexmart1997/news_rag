@@ -86,4 +86,43 @@ news_rag/
 
 ## Запуск
 
-Раздел будет заполнен по мере настройки окружения и сервисов.
+### 1. Создать виртуальное окружение
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+### 2. Поднять PostgreSQL
+
+```powershell
+docker compose up -d
+```
+
+### 3. Создать `.env`
+
+Скопировать `.env.example` в `.env` и при необходимости поправить параметры подключения.
+
+### 4. Инициализировать БД
+
+Пока доступны два пути:
+
+- быстрый старт через SQLAlchemy:
+
+```powershell
+python -m scripts.init_db
+```
+
+- дальнейший путь через Alembic:
+
+```powershell
+alembic revision --autogenerate -m "init schema"
+alembic upgrade head
+```
+
+### 5. Запустить ingestion-заготовку
+
+```powershell
+python -m scripts.run_ingestion
+```
