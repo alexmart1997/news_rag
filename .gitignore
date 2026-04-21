@@ -33,3 +33,5 @@ checkpoints/
 
 # Alembic
 alembic/versions/*.pyc
+
+news_rag.db
