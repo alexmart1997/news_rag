@@ -86,7 +86,7 @@ def load_articles(
     return pd.DataFrame(rows)
 
 
-def load_narrative_corpus(
+def load_date_corpus(
     limit: int = 1500,
     date_from: date | None = None,
     date_to: date | None = None,
@@ -171,13 +171,17 @@ def main() -> None:
     articles_df = clustering_result.articles_df
     topic_summary_df = clustering_result.topic_summary_df
 
-    narrative_corpus_df = load_narrative_corpus(
+    analytics_corpus_df = load_date_corpus(
         limit=1500,
         date_from=date_from,
         date_to=date_to,
     )
-    if not narrative_corpus_df.empty:
-        narrative_corpus_df = cluster_articles(narrative_corpus_df, n_clusters=topic_count).articles_df
+
+    analytics_clustered_df = analytics_corpus_df
+    if not analytics_corpus_df.empty:
+        analytics_clustered_df = cluster_articles(analytics_corpus_df, n_clusters=topic_count).articles_df
+
+    narrative_corpus_df = analytics_clustered_df
     narrative_result = detect_llm_narratives(narrative_corpus_df, top_n=6)
     if narrative_result.summary_df.empty and narrative_result.signals_df.empty:
         narrative_result = detect_narratives(narrative_corpus_df, top_n=6)
@@ -207,10 +211,12 @@ def main() -> None:
         st.metric("\u0423\u043d\u0438\u043a\u0430\u043b\u044c\u043d\u044b\u0445 \u0438\u0441\u0442\u043e\u0447\u043d\u0438\u043a\u043e\u0432", int(articles_df["source"].fillna("\u041d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u043e").nunique()))
         st.metric("\u041d\u043e\u0432\u043e\u0441\u0442\u0435\u0439 \u0441 \u0442\u0435\u043a\u0441\u0442\u043e\u043c", int(articles_df["text"].notna().sum()))
 
+    st.caption("??????? ? ???????? ????? ?????????? ?? ???? ?????????? ?? ????????? ?????? ???.")
+
     analytics_col1, analytics_col2 = st.columns(2)
     with analytics_col1:
         st.subheader("\u0414\u0438\u043d\u0430\u043c\u0438\u043a\u0430 \u043d\u043e\u0432\u043e\u0441\u0442\u0435\u0439")
-        daily_counts_df = build_daily_counts(articles_df)
+        daily_counts_df = build_daily_counts(analytics_corpus_df)
         if daily_counts_df.empty:
             st.info("\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0434\u0430\u043d\u043d\u044b\u0445 \u043e \u0434\u0430\u0442\u0430\u0445.")
         else:
@@ -218,7 +224,7 @@ def main() -> None:
 
     with analytics_col2:
         st.subheader("\u041a\u043b\u044e\u0447\u0435\u0432\u044b\u0435 \u0441\u043b\u043e\u0432\u0430")
-        keywords_df = build_top_keywords(articles_df, top_n=15)
+        keywords_df = build_top_keywords(analytics_corpus_df, top_n=15)
         if keywords_df.empty:
             st.info("\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0442\u0435\u043a\u0441\u0442\u0430 \u0434\u043b\u044f \u0432\u044b\u0434\u0435\u043b\u0435\u043d\u0438\u044f \u043a\u043b\u044e\u0447\u0435\u0432\u044b\u0445 \u0441\u043b\u043e\u0432.")
         else:
@@ -245,7 +251,7 @@ def main() -> None:
             st.bar_chart(topic_summary_df.set_index("topic")["size"], use_container_width=True)
 
     st.subheader("\u0414\u0438\u043d\u0430\u043c\u0438\u043a\u0430 \u0442\u0435\u043c")
-    topic_dynamics_df = build_topic_dynamics(articles_df)
+    topic_dynamics_df = build_topic_dynamics(analytics_clustered_df)
     if topic_dynamics_df.empty:
         st.info("\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0434\u0430\u043d\u043d\u044b\u0445 \u0434\u043b\u044f \u0434\u0438\u043d\u0430\u043c\u0438\u043a\u0438 \u0442\u0435\u043c.")
     else:
