@@ -14,6 +14,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from app.db.session import SessionLocal
 from app.ml.news_analytics import build_daily_counts, build_top_keywords, build_topic_dynamics
+from app.ml.similarity import find_similar_articles
 from app.ml.topic_clustering import cluster_articles
 from app.models import Article, Source
 
@@ -196,6 +197,13 @@ def main() -> None:
     if selected_row["text"]:
         st.markdown("**Text**")
         st.write(selected_row["text"])
+
+    st.subheader("Similar Articles")
+    similar_df = find_similar_articles(indexed_df, selected_index=article_options[selected_label], top_k=5)
+    if similar_df.empty:
+        st.info("Not enough text data to find similar articles.")
+    else:
+        st.dataframe(similar_df, use_container_width=True, hide_index=True)
 
 
 if __name__ == "__main__":
