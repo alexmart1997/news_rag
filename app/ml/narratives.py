@@ -22,7 +22,7 @@ NARRATIVE_PATTERNS: dict[str, dict[str, object]] = {
         "label": "Сигнал снижения",
         "terms": {
             "снижение", "снизится", "упадет", "падение", "сократится", "замедлится",
-            "ослабнет", "спад", "сокращение",
+            "ослабнет", "спад", "сокращение", "снижения",
         },
     },
     "risk": {
@@ -62,11 +62,16 @@ FUTURE_CUES = {
 
 NOISY_PREFIXES = ("фото:", "видео:", "репортаж:")
 NOISY_MARKERS = {"риа", "тасс", "новости", "фото", "видео", "корреспондент", "фоторепортаж"}
-GENERIC_FOCUS_TOKENS = ALL_STOPWORDS | FUTURE_CUES | {
+BAD_FOCUS_TOKENS = {
+    "продолжила", "продолжил", "продолжили", "ускорил", "ускорила", "ускорили",
+    "спрогнозировали", "спрогнозировал", "предрекли", "предрек", "назвали",
+    "заявили", "сообщили", "рассказали", "оценили", "допустили", "интерес",
+}
+GENERIC_FOCUS_TOKENS = ALL_STOPWORDS | FUTURE_CUES | BAD_FOCUS_TOKENS | {
     "рубль", "рубля", "рублей", "доллар", "доллара", "долларов", "евро",
     "процент", "процента", "процентов", "миллион", "миллиона", "миллионов",
     "миллиард", "миллиарда", "миллиардов", "тысяч", "тысяча", "тысячи",
-    "цена", "цены", "курс", "мир", "страна", "стран", "рынок",
+    "цена", "цены", "курс", "мир", "страна", "стран", "рынок", "россии",
 }
 
 
@@ -198,7 +203,7 @@ def _assign_narrative_groups(candidate_df: pd.DataFrame) -> pd.DataFrame:
     grouped_parts: list[pd.DataFrame] = []
     next_group_id = 0
 
-    for pattern_key, pattern_df in candidate_df.groupby("pattern_key"):
+    for _, pattern_df in candidate_df.groupby("pattern_key"):
         if len(pattern_df) == 1:
             single_df = pattern_df.copy()
             single_df["group_id"] = next_group_id
@@ -370,14 +375,14 @@ def _format_narrative_label(text: str, pattern_key: str) -> str:
     if pattern_key == "growth":
         return "Ожидается рост в этой теме"
     if pattern_key == "decline":
-        return "Ожидается снижение в этой теме"
+        return "Продолжается снижение в этой теме"
     if pattern_key == "risk":
         return "Формируется риск в этой теме"
     if pattern_key == "replacement":
-        return "Формируется мнение о замещении в этой теме"
+        return "Формируется замещение в этой теме"
     if pattern_key == "regulation":
         return "Ожидается усиление регулирования в этой теме"
-    return "Формируется ожидание стабилизации в этой теме"
+    return "Формируется стабилизация в этой теме"
 
 
 def _looks_like_bad_label(text: str, pattern_key: str) -> bool:
@@ -409,12 +414,17 @@ def _extract_focus_from_text(text: str, pattern_key: str) -> str | None:
         return None
 
     pattern_terms = set(NARRATIVE_PATTERNS.get(pattern_key, {}).get("terms", set()))
-    tokens = [
-        token
-        for token in re.findall(r"[^\W\d_]+", text.lower(), flags=re.UNICODE)
-        if len(token) >= 4 and token not in GENERIC_FOCUS_TOKENS and token not in pattern_terms
-    ]
-    if not tokens:
+    tokens: list[str] = []
+    for token in re.findall(r"[^\W\d_]+", text.lower(), flags=re.UNICODE):
+        if len(token) < 4:
+            continue
+        if token in GENERIC_FOCUS_TOKENS or token in pattern_terms:
+            continue
+        if token.endswith(("ла", "ли", "ло", "ет", "ют", "ит", "ат", "ят")):
+            continue
+        tokens.append(token)
+
+    if len(tokens) < 2:
         return None
 
     unique_tokens: list[str] = []
@@ -422,4 +432,6 @@ def _extract_focus_from_text(text: str, pattern_key: str) -> str | None:
         if token not in unique_tokens:
             unique_tokens.append(token)
 
-    return " ".join(unique_tokens[:3])
+    if len(unique_tokens) < 2:
+        return None
+    return " ".join(unique_tokens[:2])
