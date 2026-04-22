@@ -13,6 +13,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from app.db.session import SessionLocal
+from app.ml.llm_narratives import detect_llm_narratives
 from app.ml.narratives import detect_narratives
 from app.ml.news_analytics import build_daily_counts, build_top_keywords, build_topic_dynamics
 from app.ml.qa import answer_question
@@ -164,7 +165,9 @@ def main() -> None:
     narrative_corpus_df = load_narrative_corpus(limit=1500)
     if not narrative_corpus_df.empty:
         narrative_corpus_df = cluster_articles(narrative_corpus_df, n_clusters=topic_count).articles_df
-    narrative_result = detect_narratives(narrative_corpus_df, top_n=6)
+    narrative_result = detect_llm_narratives(narrative_corpus_df, top_n=6)
+    if narrative_result.summary_df.empty and narrative_result.signals_df.empty:
+        narrative_result = detect_narratives(narrative_corpus_df, top_n=6)
     narrative_summary_df = narrative_result.summary_df
     narrative_details_df = narrative_result.details_df
     narrative_signals_df = narrative_result.signals_df
