@@ -1,12 +1,19 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from pathlib import Path
+import sys
 
 import pandas as pd
 from sqlalchemy import Select, func, or_, select
 import streamlit as st
 
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 from app.db.session import SessionLocal
+from app.ml.news_analytics import build_daily_counts, build_top_keywords
 from app.models import Article, Source
 
 
@@ -133,6 +140,23 @@ def main() -> None:
         st.metric("Visible rows", len(articles_df))
         st.metric("Unique sources", int(articles_df["source"].fillna("Unknown").nunique()))
         st.metric("Rows with text", int(articles_df["text"].notna().sum()))
+
+    analytics_col1, analytics_col2 = st.columns(2)
+    with analytics_col1:
+        st.subheader("News Dynamics")
+        daily_counts_df = build_daily_counts(articles_df)
+        if daily_counts_df.empty:
+            st.info("Not enough date information for dynamics.")
+        else:
+            st.line_chart(daily_counts_df.set_index("date")["articles"], use_container_width=True)
+
+    with analytics_col2:
+        st.subheader("Top Keywords")
+        keywords_df = build_top_keywords(articles_df, top_n=15)
+        if keywords_df.empty:
+            st.info("Not enough text information for keywords.")
+        else:
+            st.bar_chart(keywords_df.set_index("keyword")["count"], use_container_width=True)
 
     st.subheader("Article details")
     indexed_df = articles_df.reset_index(drop=True)
