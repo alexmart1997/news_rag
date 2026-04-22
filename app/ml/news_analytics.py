@@ -61,6 +61,12 @@ RUSSIAN_STOPWORDS = {
     "они",
     "все",
     "всех",
+    "более",
+    "менее",
+    "очень",
+    "весь",
+    "вся",
+    "все",
 }
 
 DOMAIN_STOPWORDS = {
@@ -78,6 +84,8 @@ DOMAIN_STOPWORDS = {
     "иа",
     "reuters",
     "bloomberg",
+    "telegram",
+    "телеграм",
     "агентство",
     "корреспондент",
     "источник",
@@ -120,9 +128,6 @@ DOMAIN_STOPWORDS = {
     "рассказал",
     "рассказала",
     "рассказали",
-    "стало",
-    "стал",
-    "стала",
     "заявил",
     "заявила",
     "заявили",
@@ -139,6 +144,20 @@ DOMAIN_STOPWORDS = {
     "писал",
     "писала",
     "писали",
+    "передает",
+    "приводит",
+    "предупредил",
+    "предупредила",
+    "прочитало",
+    "беседе",
+    "речь",
+    "идет",
+    "идти",
+    "слово",
+    "слова",
+    "слов",
+    "данные",
+    "данным",
     "москва",
     "россия",
     "россии",
@@ -148,9 +167,6 @@ DOMAIN_STOPWORDS = {
     "российский",
     "российская",
     "российские",
-    "рублей",
-    "рубля",
-    "рубли",
     "рейтерс",
     "рейтер",
     "интерфакс",
@@ -171,19 +187,9 @@ DOMAIN_STOPWORDS = {
     "канал",
     "канала",
     "канале",
-    "ассосиэйтед",
-    "асcосиэйтедпресс",
-    "пресс",
     "афп",
-    "дпа",
-    "efe",
-    "эфе",
     "анадолу",
     "синьхуа",
-    "синьхуань",
-    "слово",
-    "слова",
-    "слов",
 }
 
 PERSON_NAME_STOPWORDS = {
@@ -234,8 +240,6 @@ PERSON_NAME_STOPWORDS = {
     "юрий",
 }
 
-ALL_STOPWORDS = RUSSIAN_STOPWORDS | DOMAIN_STOPWORDS | PERSON_NAME_STOPWORDS
-
 GENERIC_KEYWORD_STOPWORDS = {
     "год",
     "года",
@@ -251,14 +255,12 @@ GENERIC_KEYWORD_STOPWORDS = {
     "средства",
     "работа",
     "рынок",
-    "данные",
     "компания",
     "компании",
     "человек",
     "людей",
     "страна",
     "страны",
-    "мир",
     "часть",
     "группа",
     "область",
@@ -275,7 +277,29 @@ GENERIC_KEYWORD_STOPWORDS = {
     "миллиард",
     "миллиарда",
     "миллиардов",
+    "март",
+    "марта",
+    "апрель",
+    "апреля",
+    "май",
+    "мая",
+    "июнь",
+    "июня",
+    "июль",
+    "июля",
+    "август",
+    "августа",
+    "сентябрь",
+    "сентября",
+    "октябрь",
+    "октября",
+    "ноябрь",
+    "ноября",
+    "декабрь",
+    "декабря",
 }
+
+ALL_STOPWORDS = RUSSIAN_STOPWORDS | DOMAIN_STOPWORDS | PERSON_NAME_STOPWORDS
 
 NOISE_PATTERNS = [
     r"https?://\S+",
@@ -284,14 +308,11 @@ NOISE_PATTERNS = [
     r"видео\s*:\s*[^.;,\n]+",
     r"источник\s*:\s*[^.;,\n]+",
     r"по\s+ссылк\w*[^.;,\n]*",
-    r"сообщает\s+[^.;,\n]+",
-    r"пишет\s+[^.;,\n]+",
 ]
 
 
 def clean_text_for_analysis(text: str) -> str:
-    cleaned = text.lower()
-    cleaned = cleaned.replace("ё", "е")
+    cleaned = str(text).lower().replace("ё", "е")
     cleaned = re.sub(r"<[^>]+>", " ", cleaned)
     for pattern in NOISE_PATTERNS:
         cleaned = re.sub(pattern, " ", cleaned, flags=re.IGNORECASE)
@@ -307,12 +328,7 @@ def build_analysis_text(articles_df: pd.DataFrame) -> pd.Series:
     title = articles_df["title"].fillna("").astype(str)
     overview = articles_df["overview"].fillna("").astype(str)
     text = articles_df["text"].fillna("").astype(str)
-
-    weighted_text = (
-        title + " " + title + " "
-        + overview + " " + overview + " "
-        + text
-    )
+    weighted_text = title + " " + title + " " + overview + " " + overview + " " + text
     return weighted_text.map(clean_text_for_analysis)
 
 
@@ -329,9 +345,11 @@ def _is_valid_keyphrase(phrase: str) -> bool:
     tokens = phrase.split()
     if not tokens:
         return False
-    if len(tokens) == 1 and tokens[0] in GENERIC_KEYWORD_STOPWORDS:
+    if any(token in ALL_STOPWORDS for token in tokens):
         return False
     if all(token in GENERIC_KEYWORD_STOPWORDS for token in tokens):
+        return False
+    if len(tokens) == 1 and tokens[0] in GENERIC_KEYWORD_STOPWORDS:
         return False
     return True
 
@@ -365,7 +383,6 @@ def build_top_keywords(
     text_series = (
         articles_df["title"].fillna("").astype(str) + " " + articles_df["overview"].fillna("").astype(str)
     ).map(clean_text_for_analysis)
-
     documents = text_series[text_series.str.strip().astype(bool)].tolist()
     if not documents:
         return pd.DataFrame(columns=["keyword", "count"])
@@ -375,9 +392,9 @@ def build_top_keywords(
         preprocessor=None,
         lowercase=False,
         token_pattern=None,
-        ngram_range=(1, 3),
+        ngram_range=(2, 3),
         min_df=2 if len(documents) >= 10 else 1,
-        max_df=0.35 if len(documents) >= 20 else 0.8,
+        max_df=0.4 if len(documents) >= 20 else 0.85,
         sublinear_tf=True,
     )
 
@@ -411,10 +428,9 @@ def build_topic_dynamics(articles_df: pd.DataFrame) -> pd.DataFrame:
     if dynamics_df.empty:
         return pd.DataFrame()
 
-    pivot_df = (
+    return (
         dynamics_df.groupby(["date", "topic"])
         .size()
         .unstack(fill_value=0)
         .sort_index()
     )
-    return pivot_df
