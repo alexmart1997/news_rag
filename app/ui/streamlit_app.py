@@ -86,7 +86,11 @@ def load_articles(
     return pd.DataFrame(rows)
 
 
-def load_narrative_corpus(limit: int = 1500) -> pd.DataFrame:
+def load_narrative_corpus(
+    limit: int = 1500,
+    date_from: date | None = None,
+    date_to: date | None = None,
+) -> pd.DataFrame:
     stmt: Select = (
         select(
             Article.id,
@@ -102,6 +106,11 @@ def load_narrative_corpus(limit: int = 1500) -> pd.DataFrame:
         .order_by(Article.published_at.desc().nullslast(), Article.id.desc())
         .limit(limit)
     )
+
+    if date_from:
+        stmt = stmt.where(Article.published_at >= datetime.combine(date_from, datetime.min.time()))
+    if date_to:
+        stmt = stmt.where(Article.published_at <= datetime.combine(date_to, datetime.max.time()))
 
     with SessionLocal() as session:
         rows = session.execute(stmt).mappings().all()
@@ -162,7 +171,11 @@ def main() -> None:
     articles_df = clustering_result.articles_df
     topic_summary_df = clustering_result.topic_summary_df
 
-    narrative_corpus_df = load_narrative_corpus(limit=1500)
+    narrative_corpus_df = load_narrative_corpus(
+        limit=1500,
+        date_from=date_from,
+        date_to=date_to,
+    )
     if not narrative_corpus_df.empty:
         narrative_corpus_df = cluster_articles(narrative_corpus_df, n_clusters=topic_count).articles_df
     narrative_result = detect_llm_narratives(narrative_corpus_df, top_n=6)
