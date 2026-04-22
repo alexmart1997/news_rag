@@ -13,7 +13,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from app.db.session import SessionLocal
-from app.ml.news_analytics import build_daily_counts, build_top_keywords
+from app.ml.news_analytics import build_daily_counts, build_top_keywords, build_topic_dynamics
 from app.ml.topic_clustering import cluster_articles
 from app.models import Article, Source
 
@@ -173,6 +173,13 @@ def main() -> None:
             st.dataframe(topic_summary_df, use_container_width=True, hide_index=True)
         with cluster_col2:
             st.bar_chart(topic_summary_df.set_index("topic")["size"], use_container_width=True)
+
+    st.subheader("Topic Dynamics")
+    topic_dynamics_df = build_topic_dynamics(articles_df)
+    if topic_dynamics_df.empty:
+        st.info("Not enough data to build topic dynamics.")
+    else:
+        st.area_chart(topic_dynamics_df, use_container_width=True)
 
     st.subheader("Article details")
     indexed_df = articles_df.reset_index(drop=True)

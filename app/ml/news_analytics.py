@@ -97,3 +97,22 @@ def build_top_keywords(
     ]
     top_keywords = Counter(filtered_tokens).most_common(top_n)
     return pd.DataFrame(top_keywords, columns=["keyword", "count"])
+
+
+def build_topic_dynamics(articles_df: pd.DataFrame) -> pd.DataFrame:
+    if articles_df.empty or "published_at" not in articles_df.columns or "topic" not in articles_df.columns:
+        return pd.DataFrame()
+
+    dynamics_df = articles_df.copy()
+    dynamics_df["date"] = pd.to_datetime(dynamics_df["published_at"], errors="coerce").dt.date
+    dynamics_df = dynamics_df.dropna(subset=["date", "topic"])
+    if dynamics_df.empty:
+        return pd.DataFrame()
+
+    pivot_df = (
+        dynamics_df.groupby(["date", "topic"])
+        .size()
+        .unstack(fill_value=0)
+        .sort_index()
+    )
+    return pivot_df
