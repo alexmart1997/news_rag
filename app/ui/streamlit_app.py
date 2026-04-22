@@ -230,10 +230,10 @@ def main() -> None:
             st.line_chart(daily_counts_df.set_index("date")["articles"], use_container_width=True)
 
     with analytics_col2:
-        st.subheader("\u041a\u043b\u044e\u0447\u0435\u0432\u044b\u0435 \u0441\u043b\u043e\u0432\u0430")
+        st.subheader("\u041a\u043b\u044e\u0447\u0435\u0432\u044b\u0435 \u0444\u0440\u0430\u0437\u044b")
         keywords_df = build_top_keywords(analytics_corpus_df, top_n=15)
         if keywords_df.empty:
-            st.info("\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0442\u0435\u043a\u0441\u0442\u0430 \u0434\u043b\u044f \u0432\u044b\u0434\u0435\u043b\u0435\u043d\u0438\u044f \u043a\u043b\u044e\u0447\u0435\u0432\u044b\u0445 \u0441\u043b\u043e\u0432.")
+            st.info("\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0442\u0435\u043a\u0441\u0442\u0430 \u0434\u043b\u044f \u0432\u044b\u0434\u0435\u043b\u0435\u043d\u0438\u044f \u043a\u043b\u044e\u0447\u0435\u0432\u044b\u0445 \u0444\u0440\u0430\u0437.")
         else:
             st.bar_chart(keywords_df.set_index("keyword")["count"], use_container_width=True)
 

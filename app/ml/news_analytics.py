@@ -236,6 +236,47 @@ PERSON_NAME_STOPWORDS = {
 
 ALL_STOPWORDS = RUSSIAN_STOPWORDS | DOMAIN_STOPWORDS | PERSON_NAME_STOPWORDS
 
+GENERIC_KEYWORD_STOPWORDS = {
+    "год",
+    "года",
+    "году",
+    "лет",
+    "день",
+    "дня",
+    "дней",
+    "время",
+    "случай",
+    "случае",
+    "уровень",
+    "средства",
+    "работа",
+    "рынок",
+    "данные",
+    "компания",
+    "компании",
+    "человек",
+    "людей",
+    "страна",
+    "страны",
+    "мир",
+    "часть",
+    "группа",
+    "область",
+    "доллар",
+    "доллара",
+    "долларов",
+    "евро",
+    "процент",
+    "процента",
+    "процентов",
+    "миллион",
+    "миллиона",
+    "миллионов",
+    "миллиард",
+    "миллиарда",
+    "миллиардов",
+}
+
 NOISE_PATTERNS = [
     r"https?://\S+",
     r"www\.\S+",
@@ -284,6 +325,17 @@ def tokenize_for_analysis(text: str, min_word_length: int = 4) -> list[str]:
     ]
 
 
+def _is_valid_keyphrase(phrase: str) -> bool:
+    tokens = phrase.split()
+    if not tokens:
+        return False
+    if len(tokens) == 1 and tokens[0] in GENERIC_KEYWORD_STOPWORDS:
+        return False
+    if all(token in GENERIC_KEYWORD_STOPWORDS for token in tokens):
+        return False
+    return True
+
+
 def build_daily_counts(articles_df: pd.DataFrame) -> pd.DataFrame:
     if articles_df.empty or "published_at" not in articles_df.columns:
         return pd.DataFrame(columns=["date", "articles"])
@@ -323,6 +375,7 @@ def build_top_keywords(
         preprocessor=None,
         lowercase=False,
         token_pattern=None,
+        ngram_range=(1, 3),
         min_df=2 if len(documents) >= 10 else 1,
         max_df=0.35 if len(documents) >= 20 else 0.8,
         sublinear_tf=True,
@@ -343,6 +396,7 @@ def build_top_keywords(
             "count": doc_frequency,
         }
     )
+    keywords_df = keywords_df[keywords_df["keyword"].map(_is_valid_keyphrase)]
     keywords_df = keywords_df.sort_values(["score", "count"], ascending=[False, False], ignore_index=True)
     return keywords_df[["keyword", "count"]].head(top_n)
 
