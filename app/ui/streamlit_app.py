@@ -14,6 +14,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from app.db.session import SessionLocal
 from app.ml.news_analytics import build_daily_counts, build_top_keywords
+from app.ml.topic_clustering import cluster_articles
 from app.models import Article, Source
 
 
@@ -85,7 +86,7 @@ def render_sidebar(
     total_articles: int,
     min_date: date | None,
     max_date: date | None,
-) -> tuple[str, date | None, date | None, str, int]:
+) -> tuple[str, date | None, date | None, str, int, int]:
     st.sidebar.header("Filters")
     sources = ["All", *load_sources()]
     selected_source = st.sidebar.selectbox("Source", options=sources, index=0)
@@ -93,12 +94,13 @@ def render_sidebar(
     date_from = st.sidebar.date_input("Date from", value=min_date, min_value=min_date, max_value=max_date)
     date_to = st.sidebar.date_input("Date to", value=max_date, min_value=min_date, max_value=max_date)
     limit = st.sidebar.slider("Rows", min_value=10, max_value=200, value=50, step=10)
+    topic_count = st.sidebar.slider("Topics", min_value=2, max_value=8, value=4, step=1)
 
     st.sidebar.markdown("### Dataset")
     st.sidebar.write(f"Articles: {total_articles}")
     st.sidebar.write(f"Date range: {min_date} - {max_date}")
 
-    return selected_source, date_from, date_to, search_text, limit
+    return selected_source, date_from, date_to, search_text, limit, topic_count
 
 
 def main() -> None:
@@ -111,7 +113,7 @@ def main() -> None:
         st.info("The database is empty. Run ingestion first to load articles.")
         return
 
-    selected_source, date_from, date_to, search_text, limit = render_sidebar(
+    selected_source, date_from, date_to, search_text, limit, topic_count = render_sidebar(
         total_articles=total_articles,
         min_date=min_date,
         max_date=max_date,
@@ -129,10 +131,14 @@ def main() -> None:
         st.warning("No articles found for the selected filters.")
         return
 
+    clustering_result = cluster_articles(articles_df, n_clusters=topic_count)
+    articles_df = clustering_result.articles_df
+    topic_summary_df = clustering_result.topic_summary_df
+
     col1, col2 = st.columns([2, 1])
     with col1:
         st.subheader("Articles")
-        table_df = articles_df[["id", "source", "published_at", "title", "url"]].copy()
+        table_df = articles_df[["id", "source", "published_at", "topic", "title", "url"]].copy()
         st.dataframe(table_df, use_container_width=True, hide_index=True)
 
     with col2:
@@ -157,6 +163,16 @@ def main() -> None:
             st.info("Not enough text information for keywords.")
         else:
             st.bar_chart(keywords_df.set_index("keyword")["count"], use_container_width=True)
+
+    st.subheader("Topic Clusters")
+    if topic_summary_df.empty:
+        st.info("Not enough text to build clusters.")
+    else:
+        cluster_col1, cluster_col2 = st.columns([1, 2])
+        with cluster_col1:
+            st.dataframe(topic_summary_df, use_container_width=True, hide_index=True)
+        with cluster_col2:
+            st.bar_chart(topic_summary_df.set_index("topic")["size"], use_container_width=True)
 
     st.subheader("Article details")
     indexed_df = articles_df.reset_index(drop=True)
