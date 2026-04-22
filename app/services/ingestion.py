@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal
 from app.models import Article, Source
-from app.parsers.rbc import ParsedArticle, RBCParser, RBCSearchParams
+from app.parsers.lenta import ParsedArticle
 
 
 @dataclass(slots=True)
@@ -21,19 +22,19 @@ class IngestionResult:
 class NewsIngestionService:
     """Coordinates parsing and persistence for news sources."""
 
-    def __init__(self, parser: RBCParser):
+    def __init__(self, parser: Any):
         self.parser = parser
 
     def run(
         self,
-        search_params: RBCSearchParams,
+        search_params: Any,
         include_text: bool = True,
-        max_pages: int | None = None,
+        **fetch_kwargs: Any,
     ) -> IngestionResult:
         parsed_articles = self.parser.fetch(
             search_params=search_params,
             include_text=include_text,
-            max_pages=max_pages,
+            **fetch_kwargs,
         )
 
         inserted = 0
