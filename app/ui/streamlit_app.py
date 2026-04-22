@@ -14,6 +14,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from app.db.session import SessionLocal
 from app.ml.news_analytics import build_daily_counts, build_top_keywords, build_topic_dynamics
+from app.ml.qa import answer_question
 from app.ml.similarity import find_similar_articles
 from app.ml.topic_clustering import cluster_articles
 from app.models import Article, Source
@@ -181,6 +182,18 @@ def main() -> None:
         st.info("Not enough data to build topic dynamics.")
     else:
         st.area_chart(topic_dynamics_df, use_container_width=True)
+
+    st.subheader("News QA")
+    question = st.text_input(
+        "Ask a question about the current filtered news set",
+        value="",
+        placeholder="What happened in the economy during this period?",
+    )
+    if question.strip():
+        qa_result = answer_question(articles_df, question=question, top_k=3)
+        st.write(qa_result.answer)
+        if not qa_result.hits_df.empty:
+            st.dataframe(qa_result.hits_df, use_container_width=True, hide_index=True)
 
     st.subheader("Article details")
     indexed_df = articles_df.reset_index(drop=True)
