@@ -28,11 +28,13 @@ def _to_date(value: datetime | None) -> date | None:
     return value.date()
 
 
+@st.cache_data(show_spinner=False)
 def load_sources() -> list[str]:
     with SessionLocal() as session:
         return list(session.scalars(select(Source.name).order_by(Source.name)).all())
 
 
+@st.cache_data(show_spinner=False)
 def load_article_stats() -> tuple[int, date | None, date | None]:
     with SessionLocal() as session:
         total_articles = session.scalar(select(func.count()).select_from(Article)) or 0
@@ -41,6 +43,7 @@ def load_article_stats() -> tuple[int, date | None, date | None]:
     return total_articles, min_date, max_date
 
 
+@st.cache_data(show_spinner=False)
 def load_articles(
     limit: int,
     source_name: str | None = None,
@@ -86,6 +89,7 @@ def load_articles(
     return pd.DataFrame(rows)
 
 
+@st.cache_data(show_spinner=False)
 def load_date_corpus(
     limit: int = 1500,
     date_from: date | None = None,
@@ -167,7 +171,8 @@ def main() -> None:
         st.warning("\u041f\u043e \u0432\u044b\u0431\u0440\u0430\u043d\u043d\u044b\u043c \u0444\u0438\u043b\u044c\u0442\u0440\u0430\u043c \u043d\u043e\u0432\u043e\u0441\u0442\u0435\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e.")
         return
 
-    clustering_result = cluster_articles(articles_df, n_clusters=topic_count)
+    with st.spinner("???????????? ???????..."):
+        clustering_result = cluster_articles(articles_df, n_clusters=topic_count)
     articles_df = clustering_result.articles_df
     topic_summary_df = clustering_result.topic_summary_df
 
@@ -179,12 +184,14 @@ def main() -> None:
 
     analytics_clustered_df = analytics_corpus_df
     if not analytics_corpus_df.empty:
-        analytics_clustered_df = cluster_articles(analytics_corpus_df, n_clusters=topic_count).articles_df
+        with st.spinner("?????? ????????? ?? ???????..."):
+            analytics_clustered_df = cluster_articles(analytics_corpus_df, n_clusters=topic_count).articles_df
 
     narrative_corpus_df = analytics_clustered_df
-    narrative_result = detect_llm_narratives(narrative_corpus_df, top_n=6)
-    if narrative_result.summary_df.empty and narrative_result.signals_df.empty:
-        narrative_result = detect_narratives(narrative_corpus_df, top_n=6)
+    with st.spinner("???? ?????????..."):
+        narrative_result = detect_llm_narratives(narrative_corpus_df, top_n=6)
+        if narrative_result.summary_df.empty and narrative_result.signals_df.empty:
+            narrative_result = detect_narratives(narrative_corpus_df, top_n=6)
     narrative_summary_df = narrative_result.summary_df
     narrative_details_df = narrative_result.details_df
     narrative_signals_df = narrative_result.signals_df
