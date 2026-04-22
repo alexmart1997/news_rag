@@ -13,6 +13,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from app.db.session import SessionLocal
+from app.ml.narratives import detect_narratives
 from app.ml.news_analytics import build_daily_counts, build_top_keywords, build_topic_dynamics
 from app.ml.qa import answer_question
 from app.ml.similarity import find_similar_articles
@@ -136,6 +137,9 @@ def main() -> None:
     clustering_result = cluster_articles(articles_df, n_clusters=topic_count)
     articles_df = clustering_result.articles_df
     topic_summary_df = clustering_result.topic_summary_df
+    narrative_result = detect_narratives(articles_df, top_n=6)
+    narrative_summary_df = narrative_result.summary_df
+    narrative_details_df = narrative_result.details_df
 
     col1, col2 = st.columns([2, 1])
     with col1:
@@ -202,6 +206,69 @@ def main() -> None:
         st.info("\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0434\u0430\u043d\u043d\u044b\u0445 \u0434\u043b\u044f \u0434\u0438\u043d\u0430\u043c\u0438\u043a\u0438 \u0442\u0435\u043c.")
     else:
         st.area_chart(topic_dynamics_df, use_container_width=True)
+
+    st.subheader("\u0420\u0430\u0434\u0430\u0440 \u043d\u0430\u0440\u0440\u0430\u0442\u0438\u0432\u043e\u0432")
+    if narrative_summary_df.empty:
+        st.info("\u041f\u043e\u043a\u0430 \u043d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0432\u044b\u0434\u0435\u043b\u0438\u0442\u044c \u0444\u043e\u0440\u043c\u0438\u0440\u0443\u044e\u0449\u0438\u0435\u0441\u044f \u043d\u0430\u0440\u0440\u0430\u0442\u0438\u0432\u044b.")
+    else:
+        narrative_col1, narrative_col2 = st.columns([1.2, 1.8])
+        with narrative_col1:
+            st.dataframe(
+                narrative_summary_df.rename(
+                    columns={
+                        "narrative": "\u041d\u0430\u0440\u0440\u0430\u0442\u0438\u0432",
+                        "topic": "\u0422\u0435\u043c\u0430",
+                        "pattern": "\u0422\u0438\u043f \u0441\u0438\u0433\u043d\u0430\u043b\u0430",
+                        "strength": "\u0421\u0438\u043b\u0430",
+                        "momentum": "\u0420\u043e\u0441\u0442",
+                        "confidence": "\u0423\u0432\u0435\u0440\u0435\u043d\u043d\u043e\u0441\u0442\u044c",
+                        "articles": "\u0421\u0442\u0430\u0442\u0435\u0439",
+                        "keywords": "\u041a\u043b\u044e\u0447\u0435\u0432\u044b\u0435 \u0441\u043b\u043e\u0432\u0430",
+                    }
+                ),
+                use_container_width=True,
+                hide_index=True,
+            )
+        with narrative_col2:
+            st.bar_chart(
+                narrative_summary_df.set_index("narrative")["strength"],
+                use_container_width=True,
+            )
+
+        selected_narrative = st.selectbox(
+            "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043d\u0430\u0440\u0440\u0430\u0442\u0438\u0432",
+            options=narrative_summary_df["narrative"].tolist(),
+        )
+        selected_narrative_row = narrative_summary_df[
+            narrative_summary_df["narrative"] == selected_narrative
+        ].iloc[0]
+        st.markdown(f"**\u041d\u0430\u0440\u0440\u0430\u0442\u0438\u0432:** {selected_narrative_row['narrative']}")
+        st.markdown(
+            f"**\u0421\u0438\u043b\u0430 \u0441\u0438\u0433\u043d\u0430\u043b\u0430:** {selected_narrative_row['strength']} | "
+            f"**\u0420\u043e\u0441\u0442:** {selected_narrative_row['momentum']} | "
+            f"**\u0423\u0432\u0435\u0440\u0435\u043d\u043d\u043e\u0441\u0442\u044c:** {selected_narrative_row['confidence']}"
+        )
+        st.markdown(
+            f"**\u041a\u043b\u044e\u0447\u0435\u0432\u044b\u0435 \u0441\u0438\u0433\u043d\u0430\u043b\u044b:** {selected_narrative_row['keywords']}"
+        )
+        selected_details_df = narrative_details_df[
+            narrative_details_df["narrative"] == selected_narrative
+        ]
+        if not selected_details_df.empty:
+            st.dataframe(
+                selected_details_df.rename(
+                    columns={
+                        "narrative": "\u041d\u0430\u0440\u0440\u0430\u0442\u0438\u0432",
+                        "title": "\u0417\u0430\u0433\u043e\u043b\u043e\u0432\u043e\u043a",
+                        "published_at": "\u0414\u0430\u0442\u0430",
+                        "topic": "\u0422\u0435\u043c\u0430",
+                        "url": "URL",
+                        "overview": "\u0410\u043d\u043e\u043d\u0441",
+                    }
+                ),
+                use_container_width=True,
+                hide_index=True,
+            )
 
     st.subheader("\u0412\u043e\u043f\u0440\u043e\u0441 \u043f\u043e \u043d\u043e\u0432\u043e\u0441\u0442\u044f\u043c")
     question = st.text_input(
