@@ -8,6 +8,7 @@ import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
+from app.ml.news_analytics import ALL_STOPWORDS, tokenize_for_analysis
 from app.ml.ollama_client import generate_text, is_ollama_available
 
 
