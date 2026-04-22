@@ -211,7 +211,7 @@ def main() -> None:
         st.metric("\u0423\u043d\u0438\u043a\u0430\u043b\u044c\u043d\u044b\u0445 \u0438\u0441\u0442\u043e\u0447\u043d\u0438\u043a\u043e\u0432", int(articles_df["source"].fillna("\u041d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u043e").nunique()))
         st.metric("\u041d\u043e\u0432\u043e\u0441\u0442\u0435\u0439 \u0441 \u0442\u0435\u043a\u0441\u0442\u043e\u043c", int(articles_df["text"].notna().sum()))
 
-    st.caption("??????? ? ???????? ????? ?????????? ?? ???? ?????????? ?? ????????? ?????? ???.")
+    st.caption("Графики и ключевые слова рассчитаны по всем документам за выбранный период дат.")
 
     analytics_col1, analytics_col2 = st.columns(2)
     with analytics_col1:
