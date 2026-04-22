@@ -83,7 +83,17 @@ class NarrativeResult:
 
 def detect_narratives(articles_df: pd.DataFrame, top_n: int = 8) -> NarrativeResult:
     empty_summary = pd.DataFrame(
-        columns=["narrative", "topic", "pattern", "strength", "momentum", "confidence", "articles", "keywords"]
+        columns=[
+            "narrative",
+            "topic",
+            "pattern",
+            "coverage",
+            "share",
+            "weekly_change",
+            "cohesion",
+            "articles",
+            "keywords",
+        ]
     )
     empty_details = pd.DataFrame(columns=["narrative", "title", "published_at", "topic", "url", "overview"])
 
@@ -103,6 +113,7 @@ def detect_narratives(articles_df: pd.DataFrame, top_n: int = 8) -> NarrativeRes
     if grouped_df.empty:
         return NarrativeResult(summary_df=empty_summary, details_df=empty_details)
 
+    total_candidates = max(1, len(grouped_df))
     summary_rows: list[dict[str, object]] = []
     detail_frames: list[pd.DataFrame] = []
 
@@ -111,12 +122,10 @@ def detect_narratives(articles_df: pd.DataFrame, top_n: int = 8) -> NarrativeRes
         representative = group_df.iloc[0]
 
         recent_count, previous_count = _recent_vs_previous(group_df)
-        momentum = recent_count - previous_count
         articles_count = len(group_df)
-        avg_score = float(group_df["score"].mean())
-        avg_similarity = float(group_df["similarity_to_anchor"].mean()) if "similarity_to_anchor" in group_df else 0.5
-        confidence = round(min(1.0, 0.45 + avg_similarity / 2 + min(0.2, articles_count / 50)), 3)
-        strength = round(avg_score * confidence * max(1.0, articles_count / 3), 2)
+        share = round(articles_count / total_candidates, 3)
+        weekly_change = recent_count - previous_count
+        cohesion = round(float(group_df["similarity_to_anchor"].mean()) if "similarity_to_anchor" in group_df else 1.0, 3)
 
         keywords = _top_keywords_from_texts(group_df["candidate_text"].tolist(), top_n=4)
         topic_name = str(group_df["topic"].mode().iloc[0]) if not group_df["topic"].mode().empty else "Смешанная тема"
@@ -127,9 +136,10 @@ def detect_narratives(articles_df: pd.DataFrame, top_n: int = 8) -> NarrativeRes
                 "narrative": narrative_name,
                 "topic": topic_name,
                 "pattern": NARRATIVE_PATTERNS[str(representative["pattern_key"])]["label"],
-                "strength": strength,
-                "momentum": momentum,
-                "confidence": confidence,
+                "coverage": articles_count,
+                "share": share,
+                "weekly_change": weekly_change,
+                "cohesion": cohesion,
                 "articles": articles_count,
                 "keywords": ", ".join(keywords),
             }
@@ -143,7 +153,7 @@ def detect_narratives(articles_df: pd.DataFrame, top_n: int = 8) -> NarrativeRes
         return NarrativeResult(summary_df=empty_summary, details_df=empty_details)
 
     summary_df = pd.DataFrame(summary_rows)
-    summary_df = summary_df.sort_values(["strength", "momentum", "articles"], ascending=[False, False, False], ignore_index=True)
+    summary_df = summary_df.sort_values(["coverage", "weekly_change", "cohesion"], ascending=[False, False, False], ignore_index=True)
     summary_df = summary_df.head(top_n)
 
     details_df = pd.concat(detail_frames, ignore_index=True) if detail_frames else empty_details
@@ -182,8 +192,6 @@ def _extract_candidates(articles_df: pd.DataFrame) -> pd.DataFrame:
                     "published_at": row.get("published_at"),
                     "candidate_text": cleaned,
                     "pattern_key": pattern_key,
-                    "pattern_score": pattern_score,
-                    "future_score": future_score,
                     "score": score,
                     "tokens": tokens,
                 }
@@ -246,7 +254,7 @@ def _assign_narrative_groups(candidate_df: pd.DataFrame) -> pd.DataFrame:
         pattern_df["group_id"] = assigned
         pattern_df["similarity_to_anchor"] = 0.0
 
-        for group_id, group_df in pattern_df.groupby("group_id"):
+        for _, group_df in pattern_df.groupby("group_id"):
             anchor_idx = group_df.sort_values(["score", "published_at"], ascending=[False, False]).index[0]
             pattern_df.loc[group_df.index, "similarity_to_anchor"] = [float(similarity[anchor_idx, idx]) for idx in group_df.index]
 
@@ -388,10 +396,7 @@ def _format_narrative_label(text: str, pattern_key: str) -> str:
 def _looks_like_bad_label(text: str, pattern_key: str) -> bool:
     lowered = text.lower()
     words = re.findall(r"[^\W\d_]+", lowered, flags=re.UNICODE)
-    if len(words) < 3:
-        return True
-
-    if text.endswith("..."):
+    if len(words) < 3 or text.endswith("..."):
         return True
 
     broken_starts = {"российских", "мировым", "мировых", "крупнейших", "ведущих", "банках", "странах", "компаниях"}
@@ -423,9 +428,6 @@ def _extract_focus_from_text(text: str, pattern_key: str) -> str | None:
         if token.endswith(("ла", "ли", "ло", "ет", "ют", "ит", "ат", "ят")):
             continue
         tokens.append(token)
-
-    if len(tokens) < 2:
-        return None
 
     unique_tokens: list[str] = []
     for token in tokens:

@@ -219,9 +219,10 @@ def main() -> None:
                         "narrative": "\u041d\u0430\u0440\u0440\u0430\u0442\u0438\u0432",
                         "topic": "\u0422\u0435\u043c\u0430",
                         "pattern": "\u0422\u0438\u043f \u0441\u0438\u0433\u043d\u0430\u043b\u0430",
-                        "strength": "\u0421\u0438\u043b\u0430",
-                        "momentum": "\u0420\u043e\u0441\u0442",
-                        "confidence": "\u0423\u0432\u0435\u0440\u0435\u043d\u043d\u043e\u0441\u0442\u044c",
+                        "coverage": "\u041e\u0445\u0432\u0430\u0442",
+                        "share": "\u0414\u043e\u043b\u044f",
+                        "weekly_change": "\u0420\u043e\u0441\u0442 \u0437\u0430 \u043d\u0435\u0434\u0435\u043b\u044e",
+                        "cohesion": "\u0421\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u043d\u043e\u0441\u0442\u044c",
                         "articles": "\u0421\u0442\u0430\u0442\u0435\u0439",
                         "keywords": "\u041a\u043b\u044e\u0447\u0435\u0432\u044b\u0435 \u0441\u043b\u043e\u0432\u0430",
                     }
@@ -231,7 +232,7 @@ def main() -> None:
             )
         with narrative_col2:
             st.bar_chart(
-                narrative_summary_df.set_index("narrative")["strength"],
+                narrative_summary_df.set_index("narrative")["coverage"],
                 use_container_width=True,
             )
 
@@ -244,11 +245,12 @@ def main() -> None:
         ].iloc[0]
         st.markdown(f"**\u041d\u0430\u0440\u0440\u0430\u0442\u0438\u0432:** {selected_narrative_row['narrative']}")
         st.markdown(
-            f"**\u0421\u0438\u043b\u0430 \u0441\u0438\u0433\u043d\u0430\u043b\u0430:** {selected_narrative_row['strength']} | "
-            f"**\u0420\u043e\u0441\u0442:** {selected_narrative_row['momentum']} | "
-            f"**\u0423\u0432\u0435\u0440\u0435\u043d\u043d\u043e\u0441\u0442\u044c:** {selected_narrative_row['confidence']}"
+            f"**\u041e\u0445\u0432\u0430\u0442:** {selected_narrative_row['coverage']} \u0441\u0442\u0430\u0442\u0435\u0439 | "
+            f"**\u0414\u043e\u043b\u044f \u0432 \u043a\u043e\u0440\u043f\u0443\u0441\u0435:** {selected_narrative_row['share']:.1%} | "
+            f"**\u0420\u043e\u0441\u0442 \u0437\u0430 \u043d\u0435\u0434\u0435\u043b\u044e:** {selected_narrative_row['weekly_change']}"
         )
         st.markdown(
+            f"**\u0421\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u043d\u043e\u0441\u0442\u044c:** {selected_narrative_row['cohesion']} | "
             f"**\u041a\u043b\u044e\u0447\u0435\u0432\u044b\u0435 \u0441\u0438\u0433\u043d\u0430\u043b\u044b:** {selected_narrative_row['keywords']}"
         )
         selected_details_df = narrative_details_df[
