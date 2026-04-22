@@ -64,6 +64,22 @@ FUTURE_CUES = {
     "\u043f\u0440\u043e\u0433\u043d\u043e\u0437\u0438\u0440\u0443\u044e\u0442", "\u0432\u0435\u0440\u043e\u044f\u0442\u043d\u043e", "\u0432\u043e\u0437\u043c\u043e\u0436\u043d\u043e", "\u0433\u0440\u044f\u0434\u0435\u0442", "\u0441\u043a\u043e\u0440\u043e",
 }
 
+NOISY_PREFIXES = (
+    "\u0444\u043e\u0442\u043e:",
+    "\u0432\u0438\u0434\u0435\u043e:",
+    "\u0440\u0435\u043f\u043e\u0440\u0442\u0430\u0436:",
+)
+
+NOISY_MARKERS = {
+    "\u0440\u0438\u0430",
+    "\u0442\u0430\u0441\u0441",
+    "\u043d\u043e\u0432\u043e\u0441\u0442\u0438",
+    "\u0444\u043e\u0442\u043e",
+    "\u0432\u0438\u0434\u0435\u043e",
+    "\u043a\u043e\u0440\u0440\u0435\u0441\u043f\u043e\u043d\u0434\u0435\u043d\u0442",
+    "\u0444\u043e\u0442\u043e\u0440\u0435\u043f\u043e\u0440\u0442\u0430\u0436",
+}
+
 GENERIC_FOCUS_TOKENS = ALL_STOPWORDS | FUTURE_CUES | {
     "\u0440\u0443\u0431\u043b\u044c",
     "\u0440\u0443\u0431\u043b\u044f",
@@ -258,12 +274,15 @@ def _extract_claim_from_examples(topic_df: pd.DataFrame, pattern_key: str) -> st
     for _, row in ranked_df.head(5).iterrows():
         candidate_parts = [row.get("title"), row.get("overview")]
         for part in candidate_parts:
-            cleaned = _clean_claim_text(part)
-            if not cleaned:
-                continue
-            lowered = cleaned.lower()
-            if any(term in lowered for term in FUTURE_CUES) or any(term in lowered for term in pattern_terms):
-                return cleaned
+            for fragment in _split_candidate_fragments(part):
+                cleaned = _clean_claim_text(fragment)
+                if not cleaned:
+                    continue
+                lowered = cleaned.lower()
+                if _looks_like_noise(lowered):
+                    continue
+                if any(term in lowered for term in FUTURE_CUES) or any(term in lowered for term in pattern_terms):
+                    return cleaned
     return None
 
 
@@ -282,12 +301,56 @@ def _clean_claim_text(text: object) -> str | None:
     if not isinstance(text, str):
         return None
     cleaned = " ".join(text.strip().split())
+    cleaned = re.sub(r"^\s*(?:\u0444\u043e\u0442\u043e|video|video:|photo)\s*:\s*", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s*/\s*(?:\u0440\u0438\u0430(?:\s+\u043d\u043e\u0432\u043e\u0441\u0442\u0438)?|\u0442\u0430\u0441\u0441)\b.*$", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s+", " ", cleaned)
     cleaned = cleaned.strip(" -,:;")
     if not cleaned:
+        return None
+    if len(cleaned.split()) < 3:
         return None
     if len(cleaned) > 140:
         cleaned = cleaned[:137].rsplit(" ", 1)[0] + "..."
     return cleaned[:1].upper() + cleaned[1:]
+
+
+def _split_candidate_fragments(text: object) -> list[str]:
+    if not isinstance(text, str) or not text.strip():
+        return []
+
+    normalized = " ".join(text.strip().split())
+    for prefix in NOISY_PREFIXES:
+        if normalized.lower().startswith(prefix):
+            normalized = re.sub(r"^[^.!?]+[.!?]?\s*", "", normalized, count=1)
+            break
+
+    fragments = re.split(r"[.!?;]\s+|[«»\"]", normalized)
+    return [fragment.strip() for fragment in fragments if fragment.strip()]
+
+
+def _looks_like_noise(text: str) -> bool:
+    if not text:
+        return True
+
+    if any(text.startswith(prefix) for prefix in NOISY_PREFIXES):
+        return True
+
+    marker_hits = sum(1 for marker in NOISY_MARKERS if marker in text)
+    if marker_hits >= 2:
+        return True
+
+    words = re.findall(r"[^\W\d_]+", text, flags=re.UNICODE)
+    if not words:
+        return True
+
+    meaningful_words = [word for word in words if len(word) >= 4 and word.lower() not in GENERIC_FOCUS_TOKENS]
+    if len(meaningful_words) < 2:
+        return True
+
+    if "/" in text and marker_hits >= 1:
+        return True
+
+    return False
 
 
 def _extract_focus_ngram(topic_df: pd.DataFrame) -> str | None:
