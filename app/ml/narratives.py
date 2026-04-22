@@ -350,8 +350,22 @@ def _top_keywords_from_texts(texts: list[str], top_n: int = 4) -> list[str]:
 
 def _format_narrative_label(text: str, pattern_key: str) -> str:
     cleaned = _clean_claim_text(text)
-    if cleaned:
+    if cleaned and not _looks_like_bad_label(cleaned, pattern_key):
         return cleaned
+
+    focus = _extract_focus_from_text(cleaned or text, pattern_key)
+    if focus:
+        if pattern_key == "growth":
+            return f"Ожидается рост {focus}"
+        if pattern_key == "decline":
+            return f"Продолжается снижение {focus}"
+        if pattern_key == "risk":
+            return f"Формируется риск {focus}"
+        if pattern_key == "replacement":
+            return f"Формируется замещение {focus}"
+        if pattern_key == "regulation":
+            return f"Ожидается усиление регулирования {focus}"
+        return f"Формируется стабилизация {focus}"
 
     if pattern_key == "growth":
         return "Ожидается рост в этой теме"
@@ -364,3 +378,48 @@ def _format_narrative_label(text: str, pattern_key: str) -> str:
     if pattern_key == "regulation":
         return "Ожидается усиление регулирования в этой теме"
     return "Формируется ожидание стабилизации в этой теме"
+
+
+def _looks_like_bad_label(text: str, pattern_key: str) -> bool:
+    lowered = text.lower()
+    words = re.findall(r"[^\W\d_]+", lowered, flags=re.UNICODE)
+    if len(words) < 3:
+        return True
+
+    if text.endswith("..."):
+        return True
+
+    broken_starts = {"российских", "мировым", "мировых", "крупнейших", "ведущих", "банках", "странах", "компаниях"}
+    if words[0] in broken_starts:
+        return True
+
+    adjective_like_endings = ("ых", "их", "ого", "ему", "ому", "ими", "ыми", "ой", "ей")
+    if words[0].endswith(adjective_like_endings) and words[0] not in {"рост", "снижение", "падение", "угроза", "риск"}:
+        return True
+
+    pattern_terms = NARRATIVE_PATTERNS.get(pattern_key, {}).get("terms", set())
+    if not any(term in lowered for term in FUTURE_CUES) and not any(term in lowered for term in pattern_terms):
+        return True
+
+    return False
+
+
+def _extract_focus_from_text(text: str, pattern_key: str) -> str | None:
+    if not isinstance(text, str):
+        return None
+
+    pattern_terms = set(NARRATIVE_PATTERNS.get(pattern_key, {}).get("terms", set()))
+    tokens = [
+        token
+        for token in re.findall(r"[^\W\d_]+", text.lower(), flags=re.UNICODE)
+        if len(token) >= 4 and token not in GENERIC_FOCUS_TOKENS and token not in pattern_terms
+    ]
+    if not tokens:
+        return None
+
+    unique_tokens: list[str] = []
+    for token in tokens:
+        if token not in unique_tokens:
+            unique_tokens.append(token)
+
+    return " ".join(unique_tokens[:3])
