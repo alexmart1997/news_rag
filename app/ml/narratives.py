@@ -8,6 +8,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 from app.ml.news_analytics import ALL_STOPWORDS, build_analysis_text, tokenize_for_analysis
+from app.ml.ollama_client import generate_text, is_ollama_available
 
 
 NARRATIVE_PATTERNS: dict[str, dict[str, object]] = {
@@ -114,6 +115,7 @@ def detect_narratives(articles_df: pd.DataFrame, top_n: int = 8) -> NarrativeRes
         return NarrativeResult(summary_df=empty_summary, details_df=empty_details)
 
     total_candidates = max(1, len(grouped_df))
+    llm_available = is_ollama_available()
     summary_rows: list[dict[str, object]] = []
     detail_frames: list[pd.DataFrame] = []
 
@@ -130,6 +132,13 @@ def detect_narratives(articles_df: pd.DataFrame, top_n: int = 8) -> NarrativeRes
         keywords = _top_keywords_from_texts(group_df["candidate_text"].tolist(), top_n=4)
         topic_name = str(group_df["topic"].mode().iloc[0]) if not group_df["topic"].mode().empty else "Смешанная тема"
         narrative_name = _format_narrative_label(str(representative["candidate_text"]), str(representative["pattern_key"]))
+        if llm_available and articles_count >= 2:
+            narrative_name = _refine_with_llm(
+                fallback_label=narrative_name,
+                pattern_key=str(representative["pattern_key"]),
+                candidate_texts=group_df["candidate_text"].head(5).tolist(),
+                titles=group_df["title"].head(5).tolist(),
+            )
 
         summary_rows.append(
             {
@@ -391,6 +400,45 @@ def _format_narrative_label(text: str, pattern_key: str) -> str:
     if pattern_key == "regulation":
         return "Ожидается усиление регулирования в этой теме"
     return "Формируется стабилизация в этой теме"
+
+
+def _refine_with_llm(
+    fallback_label: str,
+    pattern_key: str,
+    candidate_texts: list[str],
+    titles: list[str],
+) -> str:
+    joined_claims = "\n".join(f"- {claim}" for claim in candidate_texts if isinstance(claim, str) and claim.strip())
+    joined_titles = "\n".join(f"- {title}" for title in titles if isinstance(title, str) and title.strip())
+
+    prompt = (
+        "Сформулируй один краткий медийный нарратив на русском языке по группе похожих новостных утверждений.\n"
+        "Требования:\n"
+        "1. Одно предложение.\n"
+        "2. Без кавычек.\n"
+        "3. Без имен журналистов, фотографов, агентств и частных деталей.\n"
+        "4. Формулировка должна быть обобщенной, но конкретной по смыслу.\n"
+        "5. Если группа слабая или неоднородная, просто улучши запасной вариант.\n\n"
+        f"Тип сигнала: {pattern_key}\n"
+        f"Запасной вариант: {fallback_label}\n\n"
+        f"Кандидатные утверждения:\n{joined_claims}\n\n"
+        f"Заголовки статей:\n{joined_titles}\n\n"
+        "Верни только итоговую формулировку."
+    )
+    system = (
+        "Ты помогаешь выделять повторяющиеся медийные нарративы из новостей. "
+        "Пиши кратко, нейтрально и грамотно."
+    )
+    response = generate_text(prompt=prompt, system=system, temperature=0.1)
+    if not response:
+        return fallback_label
+
+    cleaned = _clean_claim_text(response)
+    if not cleaned:
+        return fallback_label
+    if _looks_like_bad_label(cleaned, pattern_key):
+        return fallback_label
+    return cleaned
 
 
 def _looks_like_bad_label(text: str, pattern_key: str) -> bool:
