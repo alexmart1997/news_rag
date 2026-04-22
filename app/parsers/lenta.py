@@ -57,9 +57,21 @@ def _normalize_lenta_date(value: str) -> str:
     raise ValueError(f"Unsupported date format: {value}")
 
 
-def _parse_published_at(value: str | None) -> datetime | None:
-    if not value:
+def _parse_published_at(value: str | int | None) -> datetime | None:
+    if value in (None, ""):
         return None
+
+    if isinstance(value, int):
+        try:
+            return datetime.fromtimestamp(value)
+        except (ValueError, OSError):
+            return None
+
+    if isinstance(value, str) and value.isdigit():
+        try:
+            return datetime.fromtimestamp(int(value))
+        except (ValueError, OSError):
+            return None
 
     for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%d.%m.%Y %H:%M"):
         try:
