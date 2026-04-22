@@ -140,6 +140,7 @@ def main() -> None:
     narrative_result = detect_narratives(articles_df, top_n=6)
     narrative_summary_df = narrative_result.summary_df
     narrative_details_df = narrative_result.details_df
+    narrative_signals_df = narrative_result.signals_df
 
     col1, col2 = st.columns([2, 1])
     with col1:
@@ -209,7 +210,7 @@ def main() -> None:
 
     st.subheader("\u0420\u0430\u0434\u0430\u0440 \u043d\u0430\u0440\u0440\u0430\u0442\u0438\u0432\u043e\u0432")
     if narrative_summary_df.empty:
-        st.info("\u041f\u043e\u043a\u0430 \u043d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0432\u044b\u0434\u0435\u043b\u0438\u0442\u044c \u0444\u043e\u0440\u043c\u0438\u0440\u0443\u044e\u0449\u0438\u0435\u0441\u044f \u043d\u0430\u0440\u0440\u0430\u0442\u0438\u0432\u044b.")
+        st.info("\u041f\u043e\u043a\u0430 \u043d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0432\u044b\u0434\u0435\u043b\u0438\u0442\u044c \u043f\u043e\u0432\u0442\u043e\u0440\u044f\u044e\u0449\u0438\u0435\u0441\u044f \u043d\u0430\u0440\u0440\u0430\u0442\u0438\u0432\u044b.")
     else:
         narrative_col1, narrative_col2 = st.columns([1.2, 1.8])
         with narrative_col1:
@@ -271,6 +272,26 @@ def main() -> None:
                 use_container_width=True,
                 hide_index=True,
             )
+
+    st.subheader("\u0421\u0438\u0433\u043d\u0430\u043b\u044b")
+    if narrative_signals_df.empty:
+        st.info("\u041e\u0434\u0438\u043d\u043e\u0447\u043d\u044b\u0445 \u0441\u0438\u0433\u043d\u0430\u043b\u043e\u0432 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e.")
+    else:
+        st.caption("\u042d\u0442\u043e \u0435\u0449\u0435 \u043d\u0435 \u043d\u0430\u0440\u0440\u0430\u0442\u0438\u0432\u044b, \u0430 \u043e\u0434\u0438\u043d\u043e\u0447\u043d\u044b\u0435 \u0438\u043b\u0438 \u0441\u043b\u0430\u0431\u043e \u043f\u043e\u0432\u0442\u043e\u0440\u044f\u044e\u0449\u0438\u0435\u0441\u044f \u0442\u0435\u0437\u0438\u0441\u044b.")
+        st.dataframe(
+            narrative_signals_df.rename(
+                columns={
+                    "signal": "\u0421\u0438\u0433\u043d\u0430\u043b",
+                    "topic": "\u0422\u0435\u043c\u0430",
+                    "pattern": "\u0422\u0438\u043f \u0441\u0438\u0433\u043d\u0430\u043b\u0430",
+                    "published_at": "\u0414\u0430\u0442\u0430",
+                    "keywords": "\u041a\u043b\u044e\u0447\u0435\u0432\u044b\u0435 \u0441\u043b\u043e\u0432\u0430",
+                    "url": "URL",
+                }
+            ),
+            use_container_width=True,
+            hide_index=True,
+        )
 
     st.subheader("\u0412\u043e\u043f\u0440\u043e\u0441 \u043f\u043e \u043d\u043e\u0432\u043e\u0441\u0442\u044f\u043c")
     question = st.text_input(
