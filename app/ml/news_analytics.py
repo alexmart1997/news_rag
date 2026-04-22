@@ -60,6 +60,61 @@ RUSSIAN_STOPWORDS = {
     "\u0432\u0441\u0435\u0445",
 }
 
+DOMAIN_STOPWORDS = {
+    "\u0444\u043e\u0442\u043e",
+    "\u0432\u0438\u0434\u0435\u043e",
+    "\u0440\u0435\u043f\u043e\u0440\u0442\u0430\u0436",
+    "\u0440\u0435\u043f\u043e\u0440\u0442\u0435\u0440",
+    "\u0444\u043e\u0442\u043e\u0440\u0435\u043f\u043e\u0440\u0442\u0430\u0436",
+    "\u0442\u0430\u0441\u0441",
+    "\u0440\u0438\u0430",
+    "\u043d\u043e\u0432\u043e\u0441\u0442\u0438",
+    "\u043d\u043e\u0432\u043e\u0441\u0442\u044c",
+    "\u043b\u0435\u043d\u0442\u0430",
+    "\u0440\u0443",
+    "\u0438\u0430",
+    "\u0430\u0433\u0435\u043d\u0442\u0441\u0442\u0432\u043e",
+    "\u043a\u043e\u0440\u0440\u0435\u0441\u043f\u043e\u043d\u0434\u0435\u043d\u0442",
+    "\u0438\u0441\u0442\u043e\u0447\u043d\u0438\u043a",
+    "\u0441\u043e\u043e\u0431\u0449\u0438\u043b",
+    "\u0441\u043e\u043e\u0431\u0449\u0430\u0435\u0442",
+    "\u043f\u043e\u043a\u0430\u0437\u0430\u043b",
+    "\u0440\u0430\u0441\u0441\u043a\u0430\u0437\u0430\u043b",
+    "\u0441\u0442\u0430\u043b\u043e",
+    "\u0441\u0442\u0430\u043b",
+    "\u0441\u0442\u0430\u043b\u0430",
+    "\u043c\u043e\u0441\u043a\u0432\u0430",
+    "\u0440\u043e\u0441\u0441\u0438\u044f",
+}
+
+ALL_STOPWORDS = RUSSIAN_STOPWORDS | DOMAIN_STOPWORDS
+
+
+def build_analysis_text(articles_df: pd.DataFrame) -> pd.Series:
+    if articles_df.empty:
+        return pd.Series(dtype="object")
+
+    title = articles_df["title"].fillna("").astype(str)
+    overview = articles_df["overview"].fillna("").astype(str)
+    text = articles_df["text"].fillna("").astype(str)
+
+    # Repeating title/overview increases their importance compared to long article bodies.
+    weighted_text = (
+        title + " " + title + " "
+        + overview + " " + overview + " "
+        + text
+    )
+    return weighted_text.str.replace(r"\s+", " ", regex=True).str.strip()
+
+
+def tokenize_for_analysis(text: str, min_word_length: int = 4) -> list[str]:
+    tokens = re.findall(r"[^\W\d_]+", text.lower(), flags=re.UNICODE)
+    return [
+        token
+        for token in tokens
+        if len(token) >= min_word_length and token not in ALL_STOPWORDS
+    ]
+
 
 def build_daily_counts(articles_df: pd.DataFrame) -> pd.DataFrame:
     if articles_df.empty or "published_at" not in articles_df.columns:
@@ -88,13 +143,8 @@ def build_top_keywords(
         return pd.DataFrame(columns=["keyword", "count"])
 
     text_series = articles_df["title"].fillna("") + " " + articles_df["overview"].fillna("")
-    combined_text = " ".join(text_series.tolist()).lower()
-    tokens = re.findall(r"[^\W\d_]+", combined_text, flags=re.UNICODE)
-    filtered_tokens = [
-        token
-        for token in tokens
-        if len(token) >= min_word_length and token not in RUSSIAN_STOPWORDS
-    ]
+    combined_text = " ".join(text_series.tolist())
+    filtered_tokens = tokenize_for_analysis(combined_text, min_word_length=min_word_length)
     top_keywords = Counter(filtered_tokens).most_common(top_n)
     return pd.DataFrame(top_keywords, columns=["keyword", "count"])
 

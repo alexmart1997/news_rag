@@ -89,18 +89,18 @@ def render_sidebar(
     min_date: date | None,
     max_date: date | None,
 ) -> tuple[str, date | None, date | None, str, int, int]:
-    st.sidebar.header("Filters")
-    sources = ["All", *load_sources()]
-    selected_source = st.sidebar.selectbox("Source", options=sources, index=0)
-    search_text = st.sidebar.text_input("Keyword search", value="")
-    date_from = st.sidebar.date_input("Date from", value=min_date, min_value=min_date, max_value=max_date)
-    date_to = st.sidebar.date_input("Date to", value=max_date, min_value=min_date, max_value=max_date)
-    limit = st.sidebar.slider("Rows", min_value=10, max_value=200, value=50, step=10)
-    topic_count = st.sidebar.slider("Topics", min_value=2, max_value=8, value=4, step=1)
+    st.sidebar.header("\u0424\u0438\u043b\u044c\u0442\u0440\u044b")
+    sources = ["\u0412\u0441\u0435", *load_sources()]
+    selected_source = st.sidebar.selectbox("\u0418\u0441\u0442\u043e\u0447\u043d\u0438\u043a", options=sources, index=0)
+    search_text = st.sidebar.text_input("\u041f\u043e\u0438\u0441\u043a \u043f\u043e \u043a\u043b\u044e\u0447\u0435\u0432\u043e\u043c\u0443 \u0441\u043b\u043e\u0432\u0443", value="")
+    date_from = st.sidebar.date_input("\u0414\u0430\u0442\u0430 \u0441", value=min_date, min_value=min_date, max_value=max_date)
+    date_to = st.sidebar.date_input("\u0414\u0430\u0442\u0430 \u043f\u043e", value=max_date, min_value=min_date, max_value=max_date)
+    limit = st.sidebar.slider("\u0427\u0438\u0441\u043b\u043e \u0441\u0442\u0440\u043e\u043a", min_value=10, max_value=500, value=120, step=10)
+    topic_count = st.sidebar.slider("\u0427\u0438\u0441\u043b\u043e \u0442\u0435\u043c", min_value=2, max_value=10, value=5, step=1)
 
-    st.sidebar.markdown("### Dataset")
-    st.sidebar.write(f"Articles: {total_articles}")
-    st.sidebar.write(f"Date range: {min_date} - {max_date}")
+    st.sidebar.markdown("### \u0414\u0430\u043d\u043d\u044b\u0435")
+    st.sidebar.write(f"\u041d\u043e\u0432\u043e\u0441\u0442\u0435\u0439: {total_articles}")
+    st.sidebar.write(f"\u041f\u0435\u0440\u0438\u043e\u0434: {min_date} - {max_date}")
 
     return selected_source, date_from, date_to, search_text, limit, topic_count
 
@@ -108,11 +108,11 @@ def render_sidebar(
 def main() -> None:
     st.set_page_config(page_title="News RAG", layout="wide")
     st.title("News RAG")
-    st.caption("Minimal interface for browsing collected news articles.")
+    st.caption("\u0421\u0438\u0441\u0442\u0435\u043c\u0430 \u0441\u0431\u043e\u0440\u0430, \u0430\u043d\u0430\u043b\u0438\u0437\u0430 \u0438 \u043f\u043e\u0438\u0441\u043a\u0430 \u043d\u043e\u0432\u043e\u0441\u0442\u0435\u0439.")
 
     total_articles, min_date, max_date = load_article_stats()
     if total_articles == 0:
-        st.info("The database is empty. Run ingestion first to load articles.")
+        st.info("\u0411\u0430\u0437\u0430 \u043f\u043e\u043a\u0430 \u043f\u0443\u0441\u0442\u0430. \u0421\u043d\u0430\u0447\u0430\u043b\u0430 \u0437\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u0435 ingestion \u0438 \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u0435 \u043d\u043e\u0432\u043e\u0441\u0442\u0438.")
         return
 
     selected_source, date_from, date_to, search_text, limit, topic_count = render_sidebar(
@@ -130,7 +130,7 @@ def main() -> None:
     )
 
     if articles_df.empty:
-        st.warning("No articles found for the selected filters.")
+        st.warning("\u041f\u043e \u0432\u044b\u0431\u0440\u0430\u043d\u043d\u044b\u043c \u0444\u0438\u043b\u044c\u0442\u0440\u0430\u043c \u043d\u043e\u0432\u043e\u0441\u0442\u0435\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e.")
         return
 
     clustering_result = cluster_articles(articles_df, n_clusters=topic_count)
@@ -139,84 +139,131 @@ def main() -> None:
 
     col1, col2 = st.columns([2, 1])
     with col1:
-        st.subheader("Articles")
+        st.subheader("\u041d\u043e\u0432\u043e\u0441\u0442\u0438")
         table_df = articles_df[["id", "source", "published_at", "topic", "title", "url"]].copy()
+        table_df = table_df.rename(
+            columns={
+                "id": "ID",
+                "source": "\u0418\u0441\u0442\u043e\u0447\u043d\u0438\u043a",
+                "published_at": "\u0414\u0430\u0442\u0430",
+                "topic": "\u0422\u0435\u043c\u0430",
+                "title": "\u0417\u0430\u0433\u043e\u043b\u043e\u0432\u043e\u043a",
+                "url": "URL",
+            }
+        )
         st.dataframe(table_df, use_container_width=True, hide_index=True)
 
     with col2:
-        st.subheader("Quick stats")
-        st.metric("Visible rows", len(articles_df))
-        st.metric("Unique sources", int(articles_df["source"].fillna("Unknown").nunique()))
-        st.metric("Rows with text", int(articles_df["text"].notna().sum()))
+        st.subheader("\u041a\u0440\u0430\u0442\u043a\u0430\u044f \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430")
+        st.metric("\u0412\u0438\u0434\u0438\u043c\u044b\u0445 \u0441\u0442\u0440\u043e\u043a", len(articles_df))
+        st.metric("\u0423\u043d\u0438\u043a\u0430\u043b\u044c\u043d\u044b\u0445 \u0438\u0441\u0442\u043e\u0447\u043d\u0438\u043a\u043e\u0432", int(articles_df["source"].fillna("\u041d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u043e").nunique()))
+        st.metric("\u041d\u043e\u0432\u043e\u0441\u0442\u0435\u0439 \u0441 \u0442\u0435\u043a\u0441\u0442\u043e\u043c", int(articles_df["text"].notna().sum()))
 
     analytics_col1, analytics_col2 = st.columns(2)
     with analytics_col1:
-        st.subheader("News Dynamics")
+        st.subheader("\u0414\u0438\u043d\u0430\u043c\u0438\u043a\u0430 \u043d\u043e\u0432\u043e\u0441\u0442\u0435\u0439")
         daily_counts_df = build_daily_counts(articles_df)
         if daily_counts_df.empty:
-            st.info("Not enough date information for dynamics.")
+            st.info("\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0434\u0430\u043d\u043d\u044b\u0445 \u043e \u0434\u0430\u0442\u0430\u0445.")
         else:
             st.line_chart(daily_counts_df.set_index("date")["articles"], use_container_width=True)
 
     with analytics_col2:
-        st.subheader("Top Keywords")
+        st.subheader("\u041a\u043b\u044e\u0447\u0435\u0432\u044b\u0435 \u0441\u043b\u043e\u0432\u0430")
         keywords_df = build_top_keywords(articles_df, top_n=15)
         if keywords_df.empty:
-            st.info("Not enough text information for keywords.")
+            st.info("\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0442\u0435\u043a\u0441\u0442\u0430 \u0434\u043b\u044f \u0432\u044b\u0434\u0435\u043b\u0435\u043d\u0438\u044f \u043a\u043b\u044e\u0447\u0435\u0432\u044b\u0445 \u0441\u043b\u043e\u0432.")
         else:
             st.bar_chart(keywords_df.set_index("keyword")["count"], use_container_width=True)
 
-    st.subheader("Topic Clusters")
+    st.subheader("\u0422\u0435\u043c\u044b")
     if topic_summary_df.empty:
-        st.info("Not enough text to build clusters.")
+        st.info("\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0442\u0435\u043a\u0441\u0442\u0430 \u0434\u043b\u044f \u0432\u044b\u0434\u0435\u043b\u0435\u043d\u0438\u044f \u0442\u0435\u043c.")
     else:
         cluster_col1, cluster_col2 = st.columns([1, 2])
         with cluster_col1:
-            st.dataframe(topic_summary_df, use_container_width=True, hide_index=True)
+            st.dataframe(
+                topic_summary_df.rename(
+                    columns={
+                        "topic": "\u0422\u0435\u043c\u0430",
+                        "size": "\u0420\u0430\u0437\u043c\u0435\u0440",
+                        "keywords": "\u041a\u043b\u044e\u0447\u0435\u0432\u044b\u0435 \u0441\u043b\u043e\u0432\u0430",
+                    }
+                ),
+                use_container_width=True,
+                hide_index=True,
+            )
         with cluster_col2:
             st.bar_chart(topic_summary_df.set_index("topic")["size"], use_container_width=True)
 
-    st.subheader("Topic Dynamics")
+    st.subheader("\u0414\u0438\u043d\u0430\u043c\u0438\u043a\u0430 \u0442\u0435\u043c")
     topic_dynamics_df = build_topic_dynamics(articles_df)
     if topic_dynamics_df.empty:
-        st.info("Not enough data to build topic dynamics.")
+        st.info("\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0434\u0430\u043d\u043d\u044b\u0445 \u0434\u043b\u044f \u0434\u0438\u043d\u0430\u043c\u0438\u043a\u0438 \u0442\u0435\u043c.")
     else:
         st.area_chart(topic_dynamics_df, use_container_width=True)
 
-    st.subheader("News QA")
+    st.subheader("\u0412\u043e\u043f\u0440\u043e\u0441 \u043f\u043e \u043d\u043e\u0432\u043e\u0441\u0442\u044f\u043c")
     question = st.text_input(
-        "Ask a question about the current filtered news set",
+        "\u0417\u0430\u0434\u0430\u0439\u0442\u0435 \u0432\u043e\u043f\u0440\u043e\u0441 \u043f\u043e \u0442\u0435\u043a\u0443\u0449\u0435\u0439 \u0432\u044b\u0431\u043e\u0440\u043a\u0435 \u043d\u043e\u0432\u043e\u0441\u0442\u0435\u0439",
         value="",
-        placeholder="What happened in the economy during this period?",
+        placeholder="\u041d\u0430\u043f\u0440\u0438\u043c\u0435\u0440: \u0427\u0442\u043e \u043f\u0440\u043e\u0438\u0441\u0445\u043e\u0434\u0438\u043b\u043e \u0432 \u044d\u043a\u043e\u043d\u043e\u043c\u0438\u043a\u0435 \u0432 \u044d\u0442\u043e\u0442 \u043f\u0435\u0440\u0438\u043e\u0434?",
     )
     if question.strip():
         qa_result = answer_question(articles_df, question=question, top_k=3)
         st.write(qa_result.answer)
         if not qa_result.hits_df.empty:
-            st.dataframe(qa_result.hits_df, use_container_width=True, hide_index=True)
+            st.dataframe(
+                qa_result.hits_df.rename(
+                    columns={
+                        "id": "ID",
+                        "title": "\u0417\u0430\u0433\u043e\u043b\u043e\u0432\u043e\u043a",
+                        "topic": "\u0422\u0435\u043c\u0430",
+                        "published_at": "\u0414\u0430\u0442\u0430",
+                        "score": "\u0421\u0445\u043e\u0436\u0435\u0441\u0442\u044c",
+                        "url": "URL",
+                        "snippet": "\u0424\u0440\u0430\u0433\u043c\u0435\u043d\u0442",
+                    }
+                ),
+                use_container_width=True,
+                hide_index=True,
+            )
 
-    st.subheader("Article details")
+    st.subheader("\u0414\u0435\u0442\u0430\u043b\u0438 \u043d\u043e\u0432\u043e\u0441\u0442\u0438")
     indexed_df = articles_df.reset_index(drop=True)
     article_options = {f"{row.id}: {row.title[:100]}": index for index, row in indexed_df.iterrows()}
-    selected_label = st.selectbox("Select article", options=list(article_options.keys()))
+    selected_label = st.selectbox("\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043d\u043e\u0432\u043e\u0441\u0442\u044c", options=list(article_options.keys()))
     selected_row = indexed_df.iloc[article_options[selected_label]]
 
-    st.markdown(f"**Source:** {selected_row['source'] or 'Unknown'}")
-    st.markdown(f"**Published:** {selected_row['published_at']}")
-    st.markdown(f"**URL:** [Open article]({selected_row['url']})")
+    st.markdown(f"**\u0418\u0441\u0442\u043e\u0447\u043d\u0438\u043a:** {selected_row['source'] or '\u041d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u043e'}")
+    st.markdown(f"**\u0414\u0430\u0442\u0430:** {selected_row['published_at']}")
+    st.markdown(f"**URL:** [\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u043d\u043e\u0432\u043e\u0441\u0442\u044c]({selected_row['url']})")
     if selected_row["overview"]:
-        st.markdown("**Overview**")
+        st.markdown("**\u0410\u043d\u043e\u043d\u0441**")
         st.write(selected_row["overview"])
     if selected_row["text"]:
-        st.markdown("**Text**")
+        st.markdown("**\u0422\u0435\u043a\u0441\u0442**")
         st.write(selected_row["text"])
 
-    st.subheader("Similar Articles")
+    st.subheader("\u041f\u043e\u0445\u043e\u0436\u0438\u0435 \u0441\u0442\u0430\u0442\u044c\u0438")
     similar_df = find_similar_articles(indexed_df, selected_index=article_options[selected_label], top_k=5)
     if similar_df.empty:
-        st.info("Not enough text data to find similar articles.")
+        st.info("\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0442\u0435\u043a\u0441\u0442\u0430 \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430 \u043f\u043e\u0445\u043e\u0436\u0438\u0445 \u043d\u043e\u0432\u043e\u0441\u0442\u0435\u0439.")
     else:
-        st.dataframe(similar_df, use_container_width=True, hide_index=True)
+        st.dataframe(
+            similar_df.rename(
+                columns={
+                    "id": "ID",
+                    "title": "\u0417\u0430\u0433\u043e\u043b\u043e\u0432\u043e\u043a",
+                    "topic": "\u0422\u0435\u043c\u0430",
+                    "published_at": "\u0414\u0430\u0442\u0430",
+                    "similarity": "\u0421\u0445\u043e\u0436\u0435\u0441\u0442\u044c",
+                    "url": "URL",
+                }
+            ),
+            use_container_width=True,
+            hide_index=True,
+        )
 
 
 if __name__ == "__main__":

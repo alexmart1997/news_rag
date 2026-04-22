@@ -7,7 +7,7 @@ import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from app.ml.news_analytics import RUSSIAN_STOPWORDS
+from app.ml.news_analytics import ALL_STOPWORDS, build_analysis_text
 
 
 @dataclass(slots=True)
@@ -23,30 +23,24 @@ def answer_question(
 ) -> QAResult:
     empty_hits = pd.DataFrame(columns=["id", "title", "topic", "published_at", "score", "url", "snippet"])
     if articles_df.empty or not question.strip():
-        return QAResult(answer="Enter a question to search the news collection.", hits_df=empty_hits)
+        return QAResult(answer="\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u0432\u043e\u043f\u0440\u043e\u0441, \u0447\u0442\u043e\u0431\u044b \u0438\u0441\u043a\u0430\u0442\u044c \u043f\u043e \u043d\u043e\u0432\u043e\u0441\u0442\u044f\u043c.", hits_df=empty_hits)
 
     model_df = articles_df.reset_index(drop=True).copy()
-    text_series = (
-        model_df["title"].fillna("")
-        + " "
-        + model_df["overview"].fillna("")
-        + " "
-        + model_df["text"].fillna("")
-    ).str.strip()
+    text_series = build_analysis_text(model_df)
 
     if (text_series.str.len() > 0).sum() < 1:
-        return QAResult(answer="Not enough text data to answer the question.", hits_df=empty_hits)
+        return QAResult(answer="\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0442\u0435\u043a\u0441\u0442\u043e\u0432, \u0447\u0442\u043e\u0431\u044b \u043e\u0442\u0432\u0435\u0442\u0438\u0442\u044c \u043d\u0430 \u0432\u043e\u043f\u0440\u043e\u0441.", hits_df=empty_hits)
 
     vectorizer = TfidfVectorizer(
         lowercase=True,
-        stop_words=list(RUSSIAN_STOPWORDS),
+        stop_words=list(ALL_STOPWORDS),
         max_features=4000,
         ngram_range=(1, 2),
         min_df=1,
     )
     matrix = vectorizer.fit_transform(text_series.tolist() + [question.strip()])
     if matrix.shape[1] == 0:
-        return QAResult(answer="Could not extract enough meaningful terms from the question.", hits_df=empty_hits)
+        return QAResult(answer="\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0432\u044b\u0434\u0435\u043b\u0438\u0442\u044c \u0438\u0437 \u0432\u043e\u043f\u0440\u043e\u0441\u0430 \u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0441\u043c\u044b\u0441\u043b\u043e\u0432\u044b\u0445 \u0442\u0435\u0440\u043c\u0438\u043d\u043e\u0432.", hits_df=empty_hits)
 
     article_matrix = matrix[:-1]
     question_vector = matrix[-1]
@@ -56,7 +50,7 @@ def answer_question(
 
     hits_df = model_df.head(top_k).copy()
     if hits_df.empty or float(hits_df.iloc[0]["score"]) <= 0:
-        return QAResult(answer="I could not find relevant news for this question in the current filtered dataset.", hits_df=empty_hits)
+        return QAResult(answer="\u041f\u043e \u0442\u0435\u043a\u0443\u0449\u0435\u0439 \u0432\u044b\u0431\u043e\u0440\u043a\u0435 \u043d\u0435 \u043d\u0430\u0448\u043b\u043e\u0441\u044c \u0440\u0435\u043b\u0435\u0432\u0430\u043d\u0442\u043d\u044b\u0445 \u043d\u043e\u0432\u043e\u0441\u0442\u0435\u0439.", hits_df=empty_hits)
 
     hits_df["score"] = hits_df["score"].round(3)
     hits_df["snippet"] = hits_df.apply(_build_snippet, axis=1)
@@ -66,7 +60,7 @@ def answer_question(
         summary = row["overview"] or row["snippet"] or row["title"]
         answer_lines.append(f"- {row['title']}: {summary}")
 
-    answer = "Top relevant news for your question:\n" + "\n".join(answer_lines)
+    answer = "\u041d\u0430\u0438\u0431\u043e\u043b\u0435\u0435 \u0440\u0435\u043b\u0435\u0432\u0430\u043d\u0442\u043d\u044b\u0435 \u043d\u043e\u0432\u043e\u0441\u0442\u0438 \u043f\u043e \u0432\u0430\u0448\u0435\u043c\u0443 \u0432\u043e\u043f\u0440\u043e\u0441\u0443:\n" + "\n".join(answer_lines)
     return QAResult(
         answer=answer,
         hits_df=hits_df[["id", "title", "topic", "published_at", "score", "url", "snippet"]],
