@@ -85,6 +85,29 @@ def load_articles(
     return pd.DataFrame(rows)
 
 
+def load_narrative_corpus(limit: int = 1500) -> pd.DataFrame:
+    stmt: Select = (
+        select(
+            Article.id,
+            Source.name.label("source"),
+            Article.title,
+            Article.overview,
+            Article.text,
+            Article.url,
+            Article.published_at,
+        )
+        .select_from(Article)
+        .join(Source, Source.id == Article.source_id, isouter=True)
+        .order_by(Article.published_at.desc().nullslast(), Article.id.desc())
+        .limit(limit)
+    )
+
+    with SessionLocal() as session:
+        rows = session.execute(stmt).mappings().all()
+
+    return pd.DataFrame(rows)
+
+
 def render_sidebar(
     total_articles: int,
     min_date: date | None,
@@ -137,7 +160,11 @@ def main() -> None:
     clustering_result = cluster_articles(articles_df, n_clusters=topic_count)
     articles_df = clustering_result.articles_df
     topic_summary_df = clustering_result.topic_summary_df
-    narrative_result = detect_narratives(articles_df, top_n=6)
+
+    narrative_corpus_df = load_narrative_corpus(limit=1500)
+    if not narrative_corpus_df.empty:
+        narrative_corpus_df = cluster_articles(narrative_corpus_df, n_clusters=topic_count).articles_df
+    narrative_result = detect_narratives(narrative_corpus_df, top_n=6)
     narrative_summary_df = narrative_result.summary_df
     narrative_details_df = narrative_result.details_df
     narrative_signals_df = narrative_result.signals_df
